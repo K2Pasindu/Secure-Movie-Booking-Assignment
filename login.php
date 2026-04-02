@@ -15,19 +15,23 @@ if($_POST['username'] == '' || $_POST['password'] == ''){
 $uname = $_POST['username'];
 $password = $_POST['password'];
 
-// --- SECURE FIX: Using Prepared Statements to prevent SQL Injection [OWASP A03:2021] ---
-// [cite: 6, 26, 36]
-$stmt = $conn->prepare("SELECT count(*) as cntUser FROM user WHERE username = ? AND password = ?");
-$stmt->bind_param("ss", $uname, $password); // "ss" means two strings
+// --- SECURE FIX 1: Prepared Statements for SQL Injection [OWASP A03:2021] ---
+// අපි මුලින්ම username එකට අදාළ record එක විතරක් ගමු
+$stmt = $conn->prepare("SELECT password FROM user WHERE username = ?");
+$stmt->bind_param("s", $uname);
 $stmt->execute();
 $result = $stmt->get_result();
-$row = $result->fetch_assoc();
 
-$count = $row['cntUser'];
-
-if($count > 0){
-    $_SESSION['uname'] = $uname;
-    echo 1; // Success response for AJAX/Form
+if($row = $result->fetch_assoc()){
+    // --- SECURE FIX 2: Verify Hashed Password [OWASP A07:2021] ---
+    // Database එකේ තියෙන hash එකයි, user ගහපු plain password එකයි මෙතනදී match කරනවා
+    if (password_verify($password, $row['password'])) {
+        $_SESSION['uname'] = $uname;
+        echo 1; // Success response for AJAX/Form
+    } else {
+        echo "<li>Invalid Username or password.</li>";
+        exit();
+    }
 } else {
     echo "<li>Invalid Username or password.</li>";
     exit();
