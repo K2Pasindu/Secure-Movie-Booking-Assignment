@@ -1,43 +1,40 @@
-
 <?php
 include_once "Database.php";
 session_start();
-if (isset($_POST['submit']))
- {
- 	$username=$_POST['username'];
- 	$email=$_POST['email'];
- 	$mobile=$_POST['number'];
- 	$city=$_POST['city'];
- 	$password=$_POST['password'];
-	$filename=$_FILES['image']['name'];
-	echo $filename;
-$location='admin/image/'.$filename;
 
+if (isset($_POST['submit'])) {
+    $username = $_POST['username'];
+    $email = $_POST['email'];
+    $mobile = $_POST['number'];
+    $city = $_POST['city'];
+    $password = $_POST['password'];
+    $filename = $_FILES['image']['name'];
 
+    // --- SECURE FIX 1: Password Hashing [OWASP A07:2021] ---
+    // Passwords plain text store karanne nathuwa hash karanawa
+    $hashed_password = password_hash($password, PASSWORD_BCRYPT);
 
-$file_extension=pathinfo($location,PATHINFO_EXTENSION);
-$file_extension=strtolower($file_extension);
-$image_ext=array('jpg','png','jpeg','gif');
+    $location = 'admin/image/' . $filename;
+    $file_extension = strtolower(pathinfo($location, PATHINFO_EXTENSION));
+    $image_ext = array('jpg', 'png', 'jpeg', 'gif');
 
-$response=0;
+    $response = 0;
+    if (in_array($file_extension, $image_ext)) {
+        if (move_uploaded_file($_FILES['image']['tmp_name'], $location)) {
+            $response = $location;
+        }
+    }
 
-if(in_array($file_extension,$image_ext)){
-	if(move_uploaded_file($_FILES['image']['tmp_name'],$location)){
-		$response=$location;
-	}
-}
-echo $response;
+    // --- SECURE FIX 2: Prepared Statements for SQL Injection [OWASP A03:2021] ---
+    $stmt = $conn->prepare("INSERT INTO user (username, email, mobile, city, password, image) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssss", $username, $email, $mobile, $city, $hashed_password, $filename);
 
-$status=1;
-	$insert_record=mysqli_query($conn,"INSERT INTO user (`username`,`email`,`mobile`,`city`,`password`,`image`)VALUES('".$username."','".$email."','".$mobile."','".$city."','".$password."','".$filename."')");
-	if(!$insert_record){
-		echo "not inserted";
-	}
-	else
-	{
-		echo "hii";
-	 //echo "<script>window.location = 'login_form.php';</script>";
-	}
-
+    if ($stmt->execute()) {
+        echo "<script>alert('Registration Successful!'); window.location = 'login_form.php';</script>";
+    } else {
+        echo "Error: Registration failed.";
+    }
+    
+    $stmt->close();
 }
 ?>
